@@ -50,8 +50,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           _calculateResult();
           _expressionController.text = _resultController.text;
           break;
+        case 'null':
+          // Do nothing for null button
+          break;
         default:
-          if (_expressionController.text == '0' && buttonText != '.') {
+          if (_expressionController.text == '0' &&
+              buttonText != '.' &&
+              buttonText != '00') {
             _expressionController.text = buttonText;
           } else {
             _expressionController.text += buttonText;
@@ -180,47 +185,42 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             Expanded(
               child: Column(
                 children: [
-                  // First row: AC, C, operators
-                  Row(
-                    children: [
-                      _buildButton('AC', color: Colors.red[100]),
-                      _buildButton('C', color: Colors.red[100]),
-                      _buildButton('+', color: Colors.blue[100]),
-                      _buildButton('-', color: Colors.blue[100]),
-                    ],
-                  ),
-                  // Second row: 7-9, *
+                  // First row: 7,8,9,C,AC
                   Row(
                     children: [
                       _buildButton('7'),
                       _buildButton('8'),
                       _buildButton('9'),
-                      _buildButton('*', color: Colors.blue[100]),
+                      _buildButton('C', color: Colors.red[100]),
+                      _buildButton('AC', color: Colors.red[100]),
                     ],
                   ),
-                  // Third row: 4-6, /
+                  // Second row: 4,5,6,+,-
                   Row(
                     children: [
                       _buildButton('4'),
                       _buildButton('5'),
                       _buildButton('6'),
-                      _buildButton('/', color: Colors.blue[100]),
+                      _buildButton('+', color: Colors.blue[100]),
+                      _buildButton('-', color: Colors.blue[100]),
                     ],
                   ),
-                  // Fourth row: 1-3, =
+                  // Third row: 1,2,3,*,/
                   Row(
                     children: [
                       _buildButton('1'),
                       _buildButton('2'),
                       _buildButton('3'),
-                      _buildButton('=', color: Colors.green[100]),
+                      _buildButton('*', color: Colors.blue[100]),
+                      _buildButton('/', color: Colors.blue[100]),
                     ],
                   ),
-                  // Fifth row: 0, ., =
+                  // Fourth row: 0,.,00,=
                   Row(
                     children: [
                       _buildButton('0'),
                       _buildButton('.'),
+                      _buildButton('00'),
                       _buildButton('=', color: Colors.green[100]),
                     ],
                   ),
