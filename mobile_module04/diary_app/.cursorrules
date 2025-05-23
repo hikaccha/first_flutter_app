@@ -1,0 +1,42 @@
+# Flutter Development Rules for Cursor IDE
+
+## Project Structure
+
+- This is a Flutter project with Android and iOS native directories
+- Main Dart code is in lib/
+- Android-specific code is in android/
+- Configuration files: pubspec.yaml, android/build.gradle.kts
+
+## File Extensions to Recognize
+
+- .dart files are Dart language files
+- .kts files are Kotlin script files for Gradle
+- .gradle files are Gradle build files
+- .json files in android/app/ are configuration files
+
+## Flutter Commands
+
+When suggesting Flutter commands, always use:
+
+- flutter clean && flutter pub get for dependency issues
+- flutter run -d <device> for running on specific devices
+- flutter doctor for diagnosing environment issues
+
+## Android Development
+
+- android/ folder contains native Android project
+- Key files: android/app/build.gradle.kts, android/build.gradle.kts
+- SHA-1 fingerprints are crucial for Firebase/Google services
+- Use ./gradlew from android/ directory for Gradle commands
+
+## Firebase Configuration
+
+- google-services.json is critical for Android Firebase setup
+- Package name must match between Dart code and Firebase project
+- SHA-1 fingerprints must be registered in Firebase Console
+
+## Error Handling
+
+- Red folder indicators often mean IDE cache issues
+- Use flutter clean && gradle clean for build issues
+- Check flutter doctor for environment problems

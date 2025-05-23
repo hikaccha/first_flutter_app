@@ -64,6 +64,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '661106763380',
     projectId: 'dairy-app-43710',
     storageBucket: 'dairy-app-43710.firebasestorage.app',
+    iosClientId: '661106763380-2jv0p405fahpgjka942p0sspsgas06o0.apps.googleusercontent.com',
     iosBundleId: 'com.example.diaryApp',
   );
 
