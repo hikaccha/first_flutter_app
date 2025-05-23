@@ -11,12 +11,10 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final AuthService _authService = AuthService();
   bool _isLoading = false;
-  String? _lastError;
 
   @override
   void initState() {
     super.initState();
-    // 既に認証されているかチェック
     _checkAlreadyLoggedIn();
   }
 
@@ -28,12 +26,9 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _signInWithGoogle() async {
-    if (_isLoading) return; // 既にロード中なら処理をスキップ
+    if (_isLoading) return;
 
-    setState(() {
-      _isLoading = true;
-      _lastError = null;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final result = await _authService.signInWithGoogle();
@@ -45,7 +40,7 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       print('Google Sign-In Error: $e');
       if (mounted) {
-        _showErrorDialog('Googleログインに失敗しました: ${e.toString()}');
+        _showErrorDialog('Googleログインに失敗しました');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -53,31 +48,21 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _signInWithGitHub() async {
-    if (_isLoading) return; // 既にロード中なら処理をスキップ
+    if (_isLoading) return;
 
-    setState(() {
-      _isLoading = true;
-      _lastError = null;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final result = await _authService.signInWithGitHub(context);
       if (result != null && mounted) {
         Navigator.pushReplacementNamed(context, '/profile');
       } else if (mounted) {
-        // リダイレクトURLの問題かもしれないのでその旨を表示
-        _showErrorDialog('GitHubログインに失敗しました。リダイレクトURLの設定を確認してください。');
-        setState(() {
-          _lastError = 'GitHub認証に失敗しました。リダイレクトURLが正しく設定されていない可能性があります。';
-        });
+        _showErrorDialog('GitHubログインに失敗しました');
       }
     } catch (e) {
       print('GitHub Sign-In Error: $e');
       if (mounted) {
-        _showErrorDialog('GitHubログインに失敗しました: ${e.toString()}');
-        setState(() {
-          _lastError = e.toString();
-        });
+        _showErrorDialog('GitHubログインに失敗しました');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -146,38 +131,6 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       label: const Text('GitHubでログイン'),
                     ),
-
-                    if (_lastError != null) ...[
-                      const SizedBox(height: 20),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.red.shade200),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'エラー情報:',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.red,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _lastError!,
-                              style: TextStyle(
-                                color: Colors.red.shade800,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
                 ),
             ],
