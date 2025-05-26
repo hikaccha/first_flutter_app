@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'auth_service.dart';
+import '../../data/services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -21,7 +21,7 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _checkAlreadyLoggedIn() async {
     final user = await _authService.getCurrentUser();
     if (user != null && mounted) {
-      Navigator.pushReplacementNamed(context, '/profile');
+      Navigator.pushReplacementNamed(context, '/main');
     }
   }
 
@@ -33,7 +33,7 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final result = await _authService.signInWithGoogle();
       if (result != null && mounted) {
-        Navigator.pushReplacementNamed(context, '/profile');
+        Navigator.pushReplacementNamed(context, '/main');
       } else if (mounted) {
         _showErrorDialog('Googleログインに失敗しました');
       }
@@ -55,7 +55,7 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final result = await _authService.signInWithGitHub(context);
       if (result != null && mounted) {
-        Navigator.pushReplacementNamed(context, '/profile');
+        Navigator.pushReplacementNamed(context, '/main');
       } else if (mounted) {
         _showErrorDialog('GitHubログインに失敗しました');
       }

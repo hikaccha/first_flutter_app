@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'firestore_service.dart';
+import '../../domain/entities/mood_type.dart';
 
 class MoodSelector extends StatelessWidget {
   final MoodType selectedMood;
@@ -75,40 +75,6 @@ class MoodSelector extends StatelessWidget {
             }).toList(),
           ),
         ),
-      ],
-    );
-  }
-}
-
-class MoodDisplay extends StatelessWidget {
-  final MoodType mood;
-  final bool showLabel;
-
-  const MoodDisplay({
-    Key? key,
-    required this.mood,
-    this.showLabel = true,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          mood.emoji,
-          style: TextStyle(fontSize: 20),
-        ),
-        if (showLabel) ...[
-          SizedBox(width: 4),
-          Text(
-            mood.label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
       ],
     );
   }

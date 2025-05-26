@@ -1,10 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
 import 'firebase_options.dart';
-import 'login_page.dart';
-import 'profile_page.dart';
-import 'auth_service.dart';
-import 'dart:async';
+
+// Core
+import 'core/theme/app_theme.dart';
+import 'core/constants/app_constants.dart';
+
+// Data
+import 'data/services/firestore_service.dart';
+import 'data/repositories/diary_repository_impl.dart';
+
+// Domain
+import 'domain/repositories/diary_repository.dart';
+
+// Presentation
+import 'presentation/providers/diary_provider.dart';
+import 'presentation/pages/splash_page.dart';
+import 'presentation/pages/login_page.dart';
+import 'presentation/pages/main_tab_page.dart';
+
+// Services
+import 'data/services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,21 +36,64 @@ Future<void> main() async {
     print('Error initializing Firebase: $e');
   }
 
-  runApp(const MainApp());
+  runApp(const AdvancedDiaryApp());
 }
 
-class MainApp extends StatefulWidget {
-  const MainApp({super.key});
+class AdvancedDiaryApp extends StatelessWidget {
+  const AdvancedDiaryApp({super.key});
 
   @override
-  State<MainApp> createState() => _MainAppState();
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        // Services
+        Provider<AuthService>(
+          create: (_) => AuthService(),
+        ),
+        Provider<FirestoreService>(
+          create: (_) => FirestoreService(),
+        ),
+
+        // Repositories
+        ProxyProvider<FirestoreService, DiaryRepository>(
+          update: (_, firestoreService, __) =>
+              DiaryRepositoryImpl(firestoreService),
+        ),
+
+        // Providers
+        ChangeNotifierProxyProvider<DiaryRepository, DiaryProvider>(
+          create: (context) => DiaryProvider(
+            Provider.of<DiaryRepository>(context, listen: false),
+          ),
+          update: (_, repository, previous) =>
+              previous ?? DiaryProvider(repository),
+        ),
+      ],
+      child: MaterialApp(
+        title: AppConstants.appName,
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        home: const AppNavigator(),
+        routes: {
+          '/login': (context) => const LoginPage(),
+          '/main': (context) => MainTabPage(),
+        },
+      ),
+    );
+  }
 }
 
-class _MainAppState extends State<MainApp> {
+class AppNavigator extends StatefulWidget {
+  const AppNavigator({super.key});
+
+  @override
+  State<AppNavigator> createState() => _AppNavigatorState();
+}
+
+class _AppNavigatorState extends State<AppNavigator> {
   final AuthService _authService = AuthService();
   bool _initializing = true;
   bool _isLoggedIn = false;
-  StreamSubscription? _authSubscription;
 
   @override
   void initState() {
@@ -44,7 +104,6 @@ class _MainAppState extends State<MainApp> {
 
   @override
   void dispose() {
-    _authSubscription?.cancel();
     _authService.dispose();
     super.dispose();
   }
@@ -60,7 +119,7 @@ class _MainAppState extends State<MainApp> {
   }
 
   void _setupAuthListener() {
-    _authSubscription = _authService.authStateChanges.listen((User? user) {
+    _authService.authStateChanges.listen((user) {
       if (mounted) {
         setState(() {
           _isLoggedIn = user != null;
@@ -72,49 +131,14 @@ class _MainAppState extends State<MainApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Diary App',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
-      home: _initializing
-          ? const _LoadingScreen()
-          : _isLoggedIn
-              ? ProfilePage()
-              : const StartPage(),
-      routes: {
-        '/login': (context) => const LoginPage(),
-        '/profile': (context) => ProfilePage(),
-      },
-    );
-  }
-}
+    if (_initializing) {
+      return const SplashPage();
+    }
 
-class _LoadingScreen extends StatelessWidget {
-  const _LoadingScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
-  }
-}
-
-class StartPage extends StatelessWidget {
-  const StartPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: ElevatedButton(
-          onPressed: () {
-            Navigator.pushReplacementNamed(context, '/login');
-          },
-          child: const Text('ログイン'),
-        ),
-      ),
-    );
+    if (_isLoggedIn) {
+      return MainTabPage();
+    } else {
+      return const LoginPage();
+    }
   }
 }
