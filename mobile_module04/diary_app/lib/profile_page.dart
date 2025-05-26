@@ -2,107 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'auth_service.dart';
+import 'firestore_service.dart';
+import 'migration_service.dart';
+import 'mood_selector.dart';
 
-class DiaryEntry {
-  String id;
-  String title;
-  String content;
-  DateTime createdAt;
-
-  DiaryEntry({
-    required this.id,
-    required this.title,
-    required this.content,
-    required this.createdAt,
-  });
-
-  factory DiaryEntry.fromJson(Map<String, dynamic> json) {
-    return DiaryEntry(
-      id: json['id'],
-      title: json['title'],
-      content: json['content'],
-      createdAt: DateTime.parse(json['createdAt']),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'content': content,
-      'createdAt': createdAt.toIso8601String(),
-    };
-  }
-}
-
-class DiaryService {
-  static const String _storageKey = 'diary_entries';
-
-  Future<List<DiaryEntry>> getAllEntries() async {
-    final prefs = await SharedPreferences.getInstance();
-    final entriesJson = prefs.getStringList(_storageKey) ?? [];
-
-    if (entriesJson.isEmpty) {
-      return [];
-    }
-
-    try {
-      return entriesJson.map((json) {
-        final parts = json.split(',');
-        final map = <String, dynamic>{};
-
-        for (final part in parts) {
-          final keyValue = part.split(':');
-          if (keyValue.length >= 2) {
-            final key = keyValue[0];
-            final value = keyValue.sublist(1).join(':');
-            map[key] = value;
-          }
-        }
-
-        return DiaryEntry.fromJson(map);
-      }).toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    } catch (e) {
-      print('Error parsing entries: $e');
-      return [];
-    }
-  }
-
-  Future<void> saveEntry(DiaryEntry entry) async {
-    final prefs = await SharedPreferences.getInstance();
-    final entries = await getAllEntries();
-
-    final existingIndex = entries.indexWhere((e) => e.id == entry.id);
-
-    if (existingIndex >= 0) {
-      entries[existingIndex] = entry;
-    } else {
-      entries.add(entry);
-    }
-
-    await prefs.setStringList(
-        _storageKey,
-        entries
-            .map((e) =>
-                'id:${e.id},title:${e.title},content:${e.content},createdAt:${e.createdAt.toIso8601String()}')
-            .toList());
-  }
-
-  Future<void> deleteEntry(String id) async {
-    final prefs = await SharedPreferences.getInstance();
-    final entries = await getAllEntries();
-
-    entries.removeWhere((entry) => entry.id == id);
-
-    await prefs.setStringList(
-        _storageKey,
-        entries
-            .map((e) =>
-                'id:${e.id},title:${e.title},content:${e.content},createdAt:${e.createdAt.toIso8601String()}')
-            .toList());
-  }
-}
+// DiaryEntryクラスとDiaryServiceクラスはfirestore_service.dartに移動
 
 class ProfilePage extends StatefulWidget {
   @override
@@ -110,8 +14,9 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final DiaryService _diaryService = DiaryService();
+  final FirestoreService _firestoreService = FirestoreService();
   final AuthService _authService = AuthService();
+  final MigrationService _migrationService = MigrationService();
   List<DiaryEntry> _entries = [];
   bool _isLoading = true;
   User? _currentUser;
@@ -127,7 +32,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
     try {
       _currentUser = await _authService.getCurrentUser();
-      final entries = await _diaryService.getAllEntries();
+
+      // データ移行を実行
+      await _migrationService.migrateDataToFirestore();
+
+      final entries = await _firestoreService.getAllEntries();
 
       if (mounted) {
         setState(() {
@@ -210,7 +119,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
 
     if (confirm == true) {
-      await _diaryService.deleteEntry(entry.id);
+      await _firestoreService.deleteEntry(entry.id);
       _loadUserAndEntries();
     }
   }
@@ -290,7 +199,13 @@ class _ProfilePageState extends State<ProfilePage> {
                               direction: DismissDirection.endToStart,
                               onDismissed: (direction) => _deleteEntry(entry),
                               child: ListTile(
-                                title: Text(entry.title),
+                                title: Row(
+                                  children: [
+                                    Expanded(child: Text(entry.title)),
+                                    MoodDisplay(
+                                        mood: entry.mood, showLabel: false),
+                                  ],
+                                ),
                                 subtitle: Text(
                                   '${entry.createdAt.year}/${entry.createdAt.month}/${entry.createdAt.day}',
                                 ),
@@ -336,10 +251,11 @@ class DiaryEditorPage extends StatefulWidget {
 }
 
 class _DiaryEditorPageState extends State<DiaryEditorPage> {
-  final DiaryService _diaryService = DiaryService();
+  final FirestoreService _firestoreService = FirestoreService();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   bool _isLoading = false;
+  MoodType _selectedMood = MoodType.neutral;
 
   @override
   void initState() {
@@ -347,6 +263,7 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
     if (widget.entry != null) {
       _titleController.text = widget.entry!.title;
       _contentController.text = widget.entry!.content;
+      _selectedMood = widget.entry!.mood;
     }
   }
 
@@ -362,13 +279,16 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
 
     try {
       final entry = DiaryEntry(
-        id: widget.entry?.id ?? const Uuid().v4(),
+        id: widget.entry?.id ?? '',
         title: _titleController.text,
         content: _contentController.text,
         createdAt: widget.entry?.createdAt ?? DateTime.now(),
+        userId: '', // FirestoreServiceで自動設定される
+        userEmail: '', // FirestoreServiceで自動設定される
+        mood: _selectedMood,
       );
 
-      await _diaryService.saveEntry(entry);
+      await _firestoreService.saveEntry(entry);
       Navigator.pop(context, true);
     } catch (e) {
       print('Error saving entry: $e');
@@ -406,6 +326,15 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
                     maxLines: 1,
                   ),
                   SizedBox(height: 16),
+                  MoodSelector(
+                    selectedMood: _selectedMood,
+                    onMoodChanged: (mood) {
+                      setState(() {
+                        _selectedMood = mood;
+                      });
+                    },
+                  ),
+                  SizedBox(height: 16),
                   Expanded(
                     child: TextField(
                       controller: _contentController,
@@ -435,7 +364,7 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
 
 class DiaryViewPage extends StatelessWidget {
   final DiaryEntry entry;
-  final DiaryService _diaryService = DiaryService();
+  final FirestoreService _firestoreService = FirestoreService();
 
   DiaryViewPage({required this.entry});
 
@@ -481,7 +410,7 @@ class DiaryViewPage extends StatelessWidget {
               );
 
               if (confirm == true) {
-                await _diaryService.deleteEntry(entry.id);
+                await _firestoreService.deleteEntry(entry.id);
                 Navigator.pop(context, true);
               }
             },
@@ -493,12 +422,18 @@ class DiaryViewPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '${entry.createdAt.year}年${entry.createdAt.month}月${entry.createdAt.day}日',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${entry.createdAt.year}年${entry.createdAt.month}月${entry.createdAt.day}日',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+                MoodDisplay(mood: entry.mood),
+              ],
             ),
             SizedBox(height: 16),
             Text(
